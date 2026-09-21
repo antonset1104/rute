@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const originSelect = document.getElementById('route-origin');
   const destSelect = document.getElementById('route-dest');
 
+  if (originSelect && destSelect) {
     // Group stations by primary mode / system for clean navigation
     const modeGroups = {
       'mrt': { label: '🚇 MRT Jakarta (Lin Utara-Selatan)', stations: [] },
@@ -282,4 +283,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // 12. Smooth scroll to interactive map when clicking Peta Interaktif link
+  const mapNavLinks = document.querySelectorAll('a[href="#interactive-map-section"]');
+  mapNavLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      const mapSection = document.getElementById('interactive-map-section');
+      if (mapSection) {
+        e.preventDefault();
+        mapSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (navMenu) navMenu.classList.remove('mobile-active');
+      }
+    });
+  });
 });

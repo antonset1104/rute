@@ -244,6 +244,16 @@ class JakartaMapEngine {
       return;
     }
 
+    // If currently on official raster map view, switch to interactive vector map so user sees highlighted lines
+    if (this.currentViewMode === 'official') {
+      this.switchView('schematic');
+      const viewButtons = document.querySelectorAll('.view-switch-btn');
+      viewButtons.forEach(b => {
+        if (b.getAttribute('data-view') === 'schematic') b.classList.add('active');
+        else b.classList.remove('active');
+      });
+    }
+
     // Determine matching line prefixes
     const modePrefixes = {
       mrt: ['mrt_ns'],
@@ -252,7 +262,7 @@ class JakartaMapEngine {
       krl: ['krl_bogor', 'krl_cikarang', 'krl_rangkas', 'krl_tangerang', 'krl_priok'],
       whoosh: ['whoosh_hsr'],
       ka_bandara: ['ka_bandara_shia'],
-      tj: ['tj_1', 'tj_13']
+      tj: ['tj_1', 'tj_2', 'tj_3', 'tj_4', 'tj_5', 'tj_6', 'tj_7', 'tj_8', 'tj_9', 'tj_10', 'tj_11', 'tj_12', 'tj_13', 'tj_14']
     };
 
     const targetLines = modePrefixes[mode] || [];
@@ -271,7 +281,20 @@ class JakartaMapEngine {
     nodes.forEach(n => {
       const stId = n.getAttribute('data-station-id');
       const st = this.data.stations.find(s => s.id === stId);
-      if (st && st.lines.some(l => targetLines.includes(l))) {
+      const matchLine = st && st.lines && st.lines.some(l => targetLines.includes(l));
+      const matchMode = st && st.modes && st.modes.some(m => {
+        const mLower = m.toLowerCase();
+        if (mode === 'mrt' && mLower.includes('mrt')) return true;
+        if (mode === 'lrt_jdb' && mLower.includes('jabodebek')) return true;
+        if (mode === 'lrt_jkt' && mLower.includes('lrt jakarta')) return true;
+        if (mode === 'krl' && mLower.includes('krl')) return true;
+        if (mode === 'whoosh' && (mLower.includes('whoosh') || mLower.includes('cepat'))) return true;
+        if (mode === 'ka_bandara' && (mLower.includes('bandara') || mLower.includes('shia'))) return true;
+        if (mode === 'tj' && mLower.includes('transjakarta')) return true;
+        return false;
+      });
+
+      if (matchLine || matchMode) {
         n.classList.remove('dimmed');
         n.classList.add('highlighted');
       } else {
@@ -284,6 +307,16 @@ class JakartaMapEngine {
   highlightRoute(route) {
     this.activeRoute = route;
     if (!route || !route.steps) return;
+
+    // Switch to schematic view so glowing route line is visible
+    if (this.currentViewMode === 'official') {
+      this.switchView('schematic');
+      const viewButtons = document.querySelectorAll('.view-switch-btn');
+      viewButtons.forEach(b => {
+        if (b.getAttribute('data-view') === 'schematic') b.classList.add('active');
+        else b.classList.remove('active');
+      });
+    }
 
     // Highlight stations along path
     const stationIds = new Set();
@@ -511,7 +544,12 @@ class JakartaMapEngine {
     this.zoomLevel = 1;
     this.panX = 0;
     this.panY = 0;
-    this.updateTransform();
+    const svg = document.getElementById('transit-svg');
+    const img = document.getElementById('official-map-img');
+    if (svg) svg.style.transform = 'translate(0px, 0px) scale(1)';
+    if (img) img.style.transform = 'translate(0px, 0px) scale(1)';
+    const badge = document.getElementById('ctrl-zoom-badge');
+    if (badge) badge.textContent = '100%';
   }
 
   toggleFullscreen() {
