@@ -1,0 +1,67 @@
+/* Right-to-Left (RTL) Layout Enhancements for Arabic */
+
+body.rtl-layout {
+  direction: rtl;
+  text-align: right;
+}
+
+body.rtl-layout .planner-form-grid {
+  direction: rtl;
+}
+
+body.rtl-layout .route-steps-timeline {
+  padding-left: 0;
+  padding-right: 2rem;
+}
+
+body.rtl-layout .route-steps-timeline::before {
+  left: auto;
+  right: 9px;
+}
+
+body.rtl-layout .step-marker {
+  left: auto;
+  right: -2rem;
+}
+
+body.rtl-layout .station-select {
+  background-position: left 1rem center;
+  text-align: right;
+}
+
+body.rtl-layout .lang-dropdown-menu {
+  right: auto;
+  left: 0;
+}
+
+body.rtl-layout .map-view-switcher {
+  left: auto;
+  right: 1rem;
+}
+
+body.rtl-layout .map-controls {
+  right: auto;
+  left: 1rem;
+}
+
+body.rtl-layout .tourism-transit-box {
+  border-left: none;
+  border-right: 3px solid var(--primary);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+body.rtl-layout .transfer-item,
+body.rtl-layout .nearby-item {
+  padding-left: 0;
+  padding-right: 1.25rem;
+}
+
+body.rtl-layout .transfer-item::before,
+body.rtl-layout .nearby-item::before {
+  left: auto;
+  right: 0;
+}
+
+body.rtl-layout .modal-actions {
+  justify-content: flex-start;
+}
