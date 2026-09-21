@@ -22,6 +22,7 @@ class JakartaMapEngine {
     if (!this.container) return;
     this.render();
     this.bindEvents();
+    this.updateTransform();
   }
 
   render() {
@@ -152,6 +153,7 @@ class JakartaMapEngine {
       pathEl.setAttribute('d', line.d);
       pathEl.setAttribute('stroke', line.color);
       pathEl.setAttribute('stroke-width', line.width);
+      pathEl.setAttribute('data-base-width', line.width);
       pathEl.setAttribute('fill', 'none');
       pathEl.setAttribute('stroke-linecap', 'round');
       pathEl.setAttribute('stroke-linejoin', 'round');
@@ -528,14 +530,71 @@ class JakartaMapEngine {
     if (this.currentViewMode === 'schematic') {
       const svg = document.getElementById('transit-svg');
       if (svg) {
-        svg.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoomLevel})`;
-        svg.style.transformOrigin = 'center center';
+        // Native SVG viewBox pan/zoom (Infinite Vector Clarity - Never Blurs!)
+        const baseW = 960;
+        const baseH = 820;
+        const viewW = baseW / this.zoomLevel;
+        const viewH = baseH / this.zoomLevel;
+
+        const containerW = svg.clientWidth || baseW;
+        const containerH = svg.clientHeight || baseH;
+        const scaleX = viewW / containerW;
+        const scaleY = viewH / containerH;
+
+        const defaultMinX = (baseW - viewW) / 2;
+        const defaultMinY = (baseH - viewH) / 2;
+
+        const minX = defaultMinX - (this.panX * scaleX);
+        const minY = defaultMinY - (this.panY * scaleY);
+
+        svg.setAttribute('viewBox', `${minX} ${minY} ${viewW} ${viewH}`);
+        svg.style.transform = 'none'; // Zero CSS transform texture scaling
+
+        // Dynamically scale font sizes so station labels stay razor sharp and perfectly proportioned
+        const svgFontSize = Math.max(3.5, 11 / Math.pow(this.zoomLevel, 0.55));
+        const svgHubFontSize = Math.max(4.2, 12.5 / Math.pow(this.zoomLevel, 0.55));
+
+        const labels = svg.querySelectorAll('.station-svg-label:not(.hub-label)');
+        labels.forEach(l => {
+          l.style.fontSize = `${svgFontSize}px`;
+        });
+        const hubLabels = svg.querySelectorAll('.station-svg-label.hub-label');
+        hubLabels.forEach(l => {
+          l.style.fontSize = `${svgHubFontSize}px`;
+        });
+
+        // Proportionally scale transit line stroke widths so paths are crisp and well-balanced
+        const pathWidthFactor = Math.max(0.4, 1 / Math.pow(this.zoomLevel, 0.45));
+        const paths = svg.querySelectorAll('.transit-line-path');
+        paths.forEach(p => {
+          const baseW = parseFloat(p.getAttribute('data-base-width') || 5);
+          p.style.strokeWidth = `${baseW * pathWidthFactor}px`;
+        });
       }
     } else {
       const img = document.getElementById('official-map-img');
       if (img) {
-        img.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoomLevel})`;
-        img.style.transformOrigin = 'center center';
+        // Render official 6K image at true scaled display dimensions so high-res JPEG is decoded sharply
+        const container = document.getElementById('panzoom-container');
+        const containerW = (container && container.clientWidth) || 960;
+        const containerH = (container && container.clientHeight) || 640;
+
+        const imgAspect = 6000 / 4242;
+        let baseW = containerW;
+        let baseH = containerW / imgAspect;
+        if (baseH > containerH) {
+          baseH = containerH;
+          baseW = containerH * imgAspect;
+        }
+
+        const renderW = Math.round(baseW * this.zoomLevel);
+        const renderH = Math.round(baseH * this.zoomLevel);
+
+        img.style.width = `${renderW}px`;
+        img.style.height = `${renderH}px`;
+        img.style.maxWidth = 'none';
+        img.style.maxHeight = 'none';
+        img.style.transform = `translate(${this.panX}px, ${this.panY}px)`;
       }
     }
   }
@@ -544,12 +603,7 @@ class JakartaMapEngine {
     this.zoomLevel = 1;
     this.panX = 0;
     this.panY = 0;
-    const svg = document.getElementById('transit-svg');
-    const img = document.getElementById('official-map-img');
-    if (svg) svg.style.transform = 'translate(0px, 0px) scale(1)';
-    if (img) img.style.transform = 'translate(0px, 0px) scale(1)';
-    const badge = document.getElementById('ctrl-zoom-badge');
-    if (badge) badge.textContent = '100%';
+    this.updateTransform();
   }
 
   toggleFullscreen() {
