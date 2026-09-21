@@ -29,60 +29,66 @@ class JakartaMapEngine {
       <div class="map-wrapper" id="map-wrapper">
         <!-- Schematic SVG Vector Map Layer -->
         <div class="map-layer schematic-layer active" id="schematic-layer">
-          <svg id="transit-svg" viewBox="0 0 960 820" preserveAspectRatio="xMidYMid meet" class="transit-svg-canvas">
-            <defs>
-              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-              <!-- Patterns -->
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(226, 232, 240, 0.4)" stroke-width="1"/>
-              </pattern>
-            </defs>
+          <div class="panzoom-container" id="schematic-panzoom">
+            <svg id="transit-svg" viewBox="0 0 960 820" preserveAspectRatio="xMidYMid meet" class="transit-svg-canvas">
+              <defs>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+                <!-- Patterns -->
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(226, 232, 240, 0.4)" stroke-width="1"/>
+                </pattern>
+              </defs>
 
-            <!-- Background Grid -->
-            <rect width="100%" height="100%" fill="url(#grid)" />
+              <!-- Background Grid -->
+              <rect width="100%" height="100%" fill="url(#grid)" />
 
-            <!-- Geographic Water/Bay Indicator (Teluk Jakarta) -->
-            <path d="M 0,0 L 960,0 L 960,110 Q 500,140 0,110 Z" fill="#e0f2fe" opacity="0.7"/>
-            <text x="480" y="60" text-anchor="middle" fill="#0284c7" font-weight="700" font-size="14" letter-spacing="3">TELUK JAKARTA (JAKARTA BAY)</text>
+              <!-- Geographic Water/Bay Indicator (Teluk Jakarta) -->
+              <path d="M 0,0 L 960,0 L 960,110 Q 500,140 0,110 Z" fill="#e0f2fe" opacity="0.7"/>
+              <text x="480" y="60" text-anchor="middle" fill="#0284c7" font-weight="700" font-size="14" letter-spacing="3">TELUK JAKARTA (JAKARTA BAY)</text>
 
-            <!-- Transit Lines Paths -->
-            <g id="svg-lines-group" class="svg-lines-group"></g>
+              <!-- Transit Lines Paths -->
+              <g id="svg-lines-group" class="svg-lines-group"></g>
 
-            <!-- Transit Stations & Hubs -->
-            <g id="svg-stations-group" class="svg-stations-group"></g>
-          </svg>
+              <!-- Transit Stations & Hubs -->
+              <g id="svg-stations-group" class="svg-stations-group"></g>
+            </svg>
+          </div>
         </div>
 
         <!-- Official High-Resolution Map Layer -->
         <div class="map-layer official-layer" id="official-layer">
           <div class="panzoom-container" id="panzoom-container">
-            <img src="assets/images/peta-integrasi.jpg" alt="Peta Integrasi Transportasi Umum Jakarta" id="official-map-img" class="official-map-img" loading="eager" />
+            <img src="assets/images/peta-integrasi.jpg" alt="Peta Integrasi Transportasi Umum Jakarta 6K HD" id="official-map-img" class="official-map-img" loading="eager" />
           </div>
         </div>
 
         <!-- Floating Map Controls -->
         <div class="map-controls">
-          <button class="map-ctrl-btn" id="ctrl-zoom-in" title="Zoom In" aria-label="Zoom In">
+          <span class="map-zoom-badge" id="ctrl-zoom-badge">100%</span>
+          <button class="map-ctrl-btn" id="ctrl-zoom-in" title="Perbesar (Zoom In)" aria-label="Perbesar">
             <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
           </button>
-          <button class="map-ctrl-btn" id="ctrl-zoom-out" title="Zoom Out" aria-label="Zoom Out">
+          <button class="map-ctrl-btn" id="ctrl-zoom-out" title="Perkecil (Zoom Out)" aria-label="Perkecil">
             <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>
           </button>
-          <button class="map-ctrl-btn" id="ctrl-reset" title="Reset Map" aria-label="Reset Map">
+          <button class="map-ctrl-btn" id="ctrl-reset" title="Reset Tampilan (100%)" aria-label="Reset Tampilan">
             <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
           </button>
-          <button class="map-ctrl-btn" id="ctrl-fullscreen" title="Fullscreen" aria-label="Fullscreen">
+          <button class="map-ctrl-btn" id="ctrl-fullscreen" title="Layar Penuh" aria-label="Layar Penuh">
             <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
           </button>
+          <a href="assets/images/peta-integrasi-official.pdf" target="_blank" rel="noopener noreferrer" class="map-ctrl-btn" id="ctrl-download-pdf" title="Unduh Peta Resmi (PDF Vektor Asli)" aria-label="Unduh Peta Resmi PDF Vektor Asli" download>
+            <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          </a>
         </div>
 
         <!-- Mode View Switcher Badge -->
         <div class="map-view-switcher">
           <button class="view-switch-btn active" data-view="schematic" data-i18n="mapViewSchematic">Peta Vektor Interaktif</button>
-          <button class="view-switch-btn" data-view="official" data-i18n="mapViewOfficial">Peta Integrasi Resmi (HD)</button>
+          <button class="view-switch-btn" data-view="official" data-i18n="mapViewOfficial">Peta Integrasi Resmi (HD 6K)</button>
         </div>
       </div>
     `;
@@ -417,11 +423,12 @@ class JakartaMapEngine {
       });
     });
 
-    // Pan / Drag for Official Map Image using modern Pointer Events
-    const panContainer = document.getElementById('panzoom-container');
-    const img = document.getElementById('official-map-img');
-    if (panContainer && img) {
+    // Pan / Drag for both Schematic and Official Map using modern Pointer Events
+    const panContainers = document.querySelectorAll('.panzoom-container');
+    panContainers.forEach(panContainer => {
       panContainer.addEventListener('pointerdown', (e) => {
+        // Prevent dragging if user clicked an interactive SVG node
+        if (e.target.closest && e.target.closest('.station-node')) return;
         this.isDragging = true;
         this.startX = e.clientX - this.panX;
         this.startY = e.clientY - this.panY;
@@ -453,10 +460,10 @@ class JakartaMapEngine {
 
       panContainer.addEventListener('wheel', (e) => {
         e.preventDefault();
-        const delta = e.deltaY < 0 ? 1.15 : 0.85;
+        const delta = e.deltaY < 0 ? 1.18 : 0.85;
         this.applyZoom(delta);
       }, { passive: false });
-    }
+    });
   }
 
   switchView(view) {
@@ -475,21 +482,27 @@ class JakartaMapEngine {
   }
 
   applyZoom(factor) {
-    this.zoomLevel = Math.max(0.6, Math.min(this.zoomLevel * factor, 4.0));
+    this.zoomLevel = Math.max(0.5, Math.min(this.zoomLevel * factor, 8.0));
     this.updateTransform();
   }
 
   updateTransform() {
+    const badge = document.getElementById('ctrl-zoom-badge');
+    if (badge) {
+      badge.textContent = `${Math.round(this.zoomLevel * 100)}%`;
+    }
+
     if (this.currentViewMode === 'schematic') {
       const svg = document.getElementById('transit-svg');
       if (svg) {
-        svg.style.transform = `scale(${this.zoomLevel})`;
+        svg.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoomLevel})`;
         svg.style.transformOrigin = 'center center';
       }
     } else {
       const img = document.getElementById('official-map-img');
       if (img) {
         img.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoomLevel})`;
+        img.style.transformOrigin = 'center center';
       }
     }
   }

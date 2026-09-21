@@ -88,6 +88,25 @@
     <div class="section-header" style="text-align: center; max-width: 800px; margin: 0 auto 3rem;">
       <h1 class="section-title" style="font-size: 2.3rem;">Jalur Rel & Koridor BRT Terintegrasi Jakarta</h1>
       <p class="section-desc">Eksplorasi rute, jam layanan, frekuensi keberangkatan, dan tarif untuk 8 moda transportasi publik utama di Jabodetabek.</p>
+      <!-- Search & Filter Controls -->
+      <div style="max-width: 960px; margin: 1.5rem auto 0;">
+        <div style="margin-bottom: 1.25rem;">
+          <label for="line-search-input" class="sr-only">Cari nama rute, kode, stasiun, atau halte</label>
+          <input type="text" id="line-search-input" aria-label="Cari nama rute, kode, stasiun, atau halte" placeholder="🔍 Ketik kode rute (M1, B1, 1), nama koridor, stasiun, atau terminus..." style="width: 100%; padding: 0.9rem 1.4rem; border-radius: var(--radius-full); border: 2px solid var(--border); font-size: 1rem; outline: none; transition: border-color 0.2s;" />
+        </div>
+
+        <!-- System Filter Buttons -->
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center;" id="line-system-filters">
+          <button type="button" class="btn btn-secondary line-filter-btn active" data-system="all" style="font-size: 0.8rem; padding: 0.4rem 0.9rem; border-radius: 9999px;">Semua Rute (25)</button>
+          <button type="button" class="btn btn-secondary line-filter-btn" data-system="mrt" style="font-size: 0.8rem; padding: 0.4rem 0.9rem; border-radius: 9999px;">🚇 MRT Jakarta</button>
+          <button type="button" class="btn btn-secondary line-filter-btn" data-system="lrt_jdb" style="font-size: 0.8rem; padding: 0.4rem 0.9rem; border-radius: 9999px;">🚝 LRT Jabodebek</button>
+          <button type="button" class="btn btn-secondary line-filter-btn" data-system="lrt_jkt" style="font-size: 0.8rem; padding: 0.4rem 0.9rem; border-radius: 9999px;">🚈 LRT Jakarta</button>
+          <button type="button" class="btn btn-secondary line-filter-btn" data-system="krl" style="font-size: 0.8rem; padding: 0.4rem 0.9rem; border-radius: 9999px;">🚆 KRL Commuter</button>
+          <button type="button" class="btn btn-secondary line-filter-btn" data-system="tj" style="font-size: 0.8rem; padding: 0.4rem 0.9rem; border-radius: 9999px;">🚌 TransJakarta BRT (14 Koridor)</button>
+          <button type="button" class="btn btn-secondary line-filter-btn" data-system="whoosh" style="font-size: 0.8rem; padding: 0.4rem 0.9rem; border-radius: 9999px;">🚄 Kereta Cepat Whoosh</button>
+          <button type="button" class="btn btn-secondary line-filter-btn" data-system="ka_bandara" style="font-size: 0.8rem; padding: 0.4rem 0.9rem; border-radius: 9999px;">✈️ KA Bandara</button>
+        </div>
+      </div>
     </div>
 
     <!-- AdSense Slot Top -->
@@ -132,7 +151,13 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const container = document.getElementById('lines-directory-list');
+      const searchInput = document.getElementById('line-search-input');
+      const filterBtns = document.querySelectorAll('.line-filter-btn');
       if (!container || !window.TRANSIT_DATA) return;
+
+      const lines = window.TRANSIT_DATA.lines;
+      let currentSystem = 'all';
+      let currentQuery = '';
 
       function escapeHTML(str) {
         if (!str) return '';
@@ -141,42 +166,79 @@
         return p.innerHTML;
       }
 
-      container.innerHTML = window.TRANSIT_DATA.lines.map(line => {
-        const system = window.TRANSIT_DATA.systems.find(s => s.id === line.system);
-        return `
-          <article class="hub-card" style="border-left: 6px solid ${line.color};">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
-              <span class="mode-badge" style="background: ${line.color}; color: ${line.textColor || '#ffffff'}; font-weight: 800; font-size: 0.875rem; padding: 0.35rem 0.8rem;">
-                ${escapeHTML(system ? system.name : line.system.toUpperCase())} [${escapeHTML(line.code)}]
-              </span>
-              <span style="font-size: 0.813rem; font-weight: 700; color: var(--text-muted);">
-                🕒 ${escapeHTML(line.operatingHours || '05:00 - 22:00')}
-              </span>
-            </div>
+      function render(items) {
+        if (items.length === 0) {
+          container.innerHTML = `<div style="text-align: center; padding: 3rem; color: var(--text-muted); font-size: 1.1rem;">Tidak ada jalur/koridor yang cocok dengan kriteria filter atau pencarian Anda.</div>`;
+          return;
+        }
 
-            <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 0.5rem; color: #0f172a;">${escapeHTML(line.name)}</h2>
-            <div style="font-size: 0.938rem; font-weight: 700; color: var(--primary); margin-bottom: 1rem;">
-              Terminus: ${escapeHTML(line.from)} ⇄ ${escapeHTML(line.to)}
-            </div>
-
-            <div style="margin-bottom: 1rem;">
-              <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.4rem;">Daftar Stasiun / Halte yang Dilayani:</div>
-              <div style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
-                ${line.stations.map(stId => {
-                  const st = window.TRANSIT_DATA.stations.find(s => s.id === stId);
-                  const name = st ? st.name : stId.replace(/_/g, ' ').toUpperCase();
-                  return `<span class="transfer-tag" style="background: #f1f5f9; font-weight: 600;">${escapeHTML(name)}</span>`;
-                }).join('')}
+        container.innerHTML = items.map(line => {
+          const system = window.TRANSIT_DATA.systems.find(s => s.id === line.system);
+          return `
+            <article class="hub-card" style="border-left: 6px solid ${line.color};">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+                <span class="mode-badge" style="background: ${line.color}; color: ${line.textColor || '#ffffff'}; font-weight: 800; font-size: 0.875rem; padding: 0.35rem 0.8rem;">
+                  ${escapeHTML(system ? system.name : line.system.toUpperCase())} [${escapeHTML(line.code)}]
+                </span>
+                <span style="font-size: 0.813rem; font-weight: 700; color: var(--text-muted);">
+                  🕒 ${escapeHTML(line.operatingHours || '05:00 - 22:00')}
+                </span>
               </div>
-            </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 0.75rem; font-size: 0.875rem;">
-              <span style="color: var(--text-muted);">Tarif: <strong>${line.flatFare ? 'Rp ' + line.flatFare.toLocaleString('id-ID') + ' (Flat)' : 'Rp ' + (line.baseFare || 3000).toLocaleString('id-ID') + (line.maxFare ? ' - Rp ' + line.maxFare.toLocaleString('id-ID') : '')}</strong></span>
-              <a href="index.html" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.35rem 0.75rem;">Buka di Peta</a>
-            </div>
-          </article>
-        `;
-      }).join('');
+              <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 0.5rem; color: #0f172a;">${escapeHTML(line.name)}</h2>
+              <div style="font-size: 0.938rem; font-weight: 700; color: var(--primary); margin-bottom: 1rem;">
+                Terminus: ${escapeHTML(line.from)} ⇄ ${escapeHTML(line.to)}
+              </div>
+
+              <div style="margin-bottom: 1rem;">
+                <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.4rem;">Daftar Stasiun / Halte yang Dilayani (${line.stations.length}):</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
+                  ${line.stations.map(stId => {
+                    const st = window.TRANSIT_DATA.stations.find(s => s.id === stId);
+                    const name = st ? st.name : stId.replace(/_/g, ' ').toUpperCase();
+                    return `<a href="index.html?origin=${encodeURIComponent(stId)}" class="transfer-tag" style="background: #f1f5f9; font-weight: 600; text-decoration: none; color: inherit;" title="Lihat di Peta: ${escapeHTML(name)}">${escapeHTML(name)}</a>`;
+                  }).join('')}
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 0.75rem; font-size: 0.875rem; flex-wrap: wrap; gap: 0.5rem;">
+                <span style="color: var(--text-muted);">Tarif: <strong>${line.flatFare ? 'Rp ' + line.flatFare.toLocaleString('id-ID') + ' (Flat)' : 'Rp ' + (line.baseFare || 3000).toLocaleString('id-ID') + (line.maxFare ? ' - Rp ' + line.maxFare.toLocaleString('id-ID') : '')}</strong></span>
+                <a href="index.html" class="btn btn-secondary" style="font-size: 0.75rem; padding: 0.35rem 0.75rem;">Buka di Peta</a>
+              </div>
+            </article>
+          `;
+        }).join('');
+      }
+
+      function applyFilter() {
+        const filtered = lines.filter(l => {
+          const matchSystem = (currentSystem === 'all') || (l.system === currentSystem);
+          const matchQuery = !currentQuery ||
+            l.name.toLowerCase().includes(currentQuery) ||
+            l.code.toLowerCase().includes(currentQuery) ||
+            l.from.toLowerCase().includes(currentQuery) ||
+            l.to.toLowerCase().includes(currentQuery) ||
+            (l.stations && l.stations.some(s => s.toLowerCase().includes(currentQuery)));
+          return matchSystem && matchQuery;
+        });
+        render(filtered);
+      }
+
+      render(lines);
+
+      searchInput.addEventListener('input', (e) => {
+        currentQuery = e.target.value.toLowerCase().trim();
+        applyFilter();
+      });
+
+      filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          filterBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentSystem = btn.getAttribute('data-system');
+          applyFilter();
+        });
+      });
     });
   </script>
 </body>

@@ -22,52 +22,24 @@ class RoutePlanner {
   }
 
   buildGraph() {
-    // Build alias map: line station IDs → hub station IDs
-    // This resolves the mismatch between line.stations[] and stations[] arrays.
-    const aliasRules = {
-      // MRT N-S line stations
-      'lebak_bulus': 'lebak_bulus_hub',
-      'blok_m': 'blok_m_hub',
-      'asean': 'csw_asean_hub',
-      'senayan': 'senayan_hub',
-      'istora': 'senayan_hub',
-      'dukuh_atas_mrt': 'dukuh_atas_hub',
-      'bundaran_hi': 'bundaran_hi_hub',
-      'setiabudi_astra': 'dukuh_atas_hub',
-      // LRT Jabodebek
-      'dukuh_atas_lrt': 'dukuh_atas_hub',
-      'setiabudi_lrt': 'dukuh_atas_hub',
-      'cawang': 'cawang_hub',
-      'cikoko': 'cawang_hub',
-      'halim_lrt': 'halim_hub',
-      'halim_whoosh': 'halim_hub',
-      // LRT Jakarta
-      'velodrome': 'velodrome_hub',
-      // KRL stations
-      'jakarta_kota': 'jakarta_kota_hub',
-      'manggarai': 'manggarai_hub',
-      'tanah_abang': 'tanah_abang_hub',
-      'pasar_senen': 'senen_hub',
-      'senen': 'senen_hub',
-      'sudirman': 'dukuh_atas_hub',
-      'bni_city': 'dukuh_atas_hub',
-      'duri': 'tanah_abang_hub',
-      'kampung_bandan': 'jakarta_kota_hub',
-      'cawang_krl': 'cawang_hub',
-      // KA Bandara
-      'bandara_shia': 'bandara_shia_hub',
-      // TransJakarta
-      'dukuh_atas_tj': 'dukuh_atas_hub',
-      'bundaran_hi_tj': 'bundaran_hi_hub',
-      'monas': 'monas_hub',
-      'harmoni': 'monas_hub',
-      'galunggung': 'dukuh_atas_hub',
-      'csw_integrasi': 'csw_asean_hub',
-      // Whoosh
-      'karawang': 'halim_hub'
+    // Backward-compatibility mapping from legacy hub names to actual station IDs
+    this.aliasMap = {
+      'dukuh_atas_hub': 'dukuh_atas_mrt',
+      'lebak_bulus_hub': 'lebak_bulus',
+      'blok_m_hub': 'blok_m',
+      'csw_asean_hub': 'asean',
+      'senayan_hub': 'senayan',
+      'bundaran_hi_hub': 'bundaran_hi',
+      'cawang_hub': 'cawang_krl',
+      'halim_hub': 'halim_whoosh',
+      'velodrome_hub': 'velodrome',
+      'jakarta_kota_hub': 'jakarta_kota',
+      'manggarai_hub': 'manggarai',
+      'tanah_abang_hub': 'tanah_abang',
+      'senen_hub': 'pasar_senen',
+      'bandara_shia_hub': 'bandara_shia',
+      'monas_hub': 'monas'
     };
-
-    this.aliasMap = aliasRules;
 
     // Map stations by id
     this.data.stations.forEach(st => {
@@ -75,17 +47,23 @@ class RoutePlanner {
       if (!this.graph[st.id]) this.graph[st.id] = [];
     });
 
-    // Connect stations along lines, resolving aliases
+    // Also register legacy aliases in stationMap so any legacy lookup works
+    Object.entries(this.aliasMap).forEach(([legacyId, actualId]) => {
+      if (this.stationMap[actualId] && !this.stationMap[legacyId]) {
+        this.stationMap[legacyId] = this.stationMap[actualId];
+        if (!this.graph[legacyId]) this.graph[legacyId] = [];
+      }
+    });
+
+    // Connect stations along lines
     this.data.lines.forEach(line => {
       const stationIds = line.stations;
       for (let i = 0; i < stationIds.length - 1; i++) {
         const u = this.resolveStationId(stationIds[i]);
         const v = this.resolveStationId(stationIds[i + 1]);
 
-        // Skip self-loops (two line stations mapping to the same hub)
         if (u === v) continue;
 
-        // Only build edges between known stations
         if (this.stationMap[u] && this.stationMap[v]) {
           this.addEdge(u, v, line.id, line.system);
           this.addEdge(v, u, line.id, line.system);
@@ -93,34 +71,61 @@ class RoutePlanner {
       }
     });
 
-    // Add intermodal transfer links between hubs
+    // Physical Intermodal Transfers (Walking Connections / Skybridges)
     const transferClusters = [
-      ['dukuh_atas_hub', 'bundaran_hi_hub', 4],
-      ['dukuh_atas_hub', 'senayan_hub', 8],
-      ['dukuh_atas_hub', 'manggarai_hub', 6],
-      ['dukuh_atas_hub', 'tanah_abang_hub', 7],
-      ['csw_asean_hub', 'blok_m_hub', 3],
-      ['csw_asean_hub', 'senayan_hub', 6],
-      ['monas_hub', 'bundaran_hi_hub', 6],
-      ['monas_hub', 'jakarta_kota_hub', 10],
-      ['monas_hub', 'senen_hub', 7],
-      ['manggarai_hub', 'senen_hub', 11],
-      ['manggarai_hub', 'cawang_hub', 8],
-      ['cawang_hub', 'halim_hub', 9],
-      ['velodrome_hub', 'senen_hub', 15],
-      ['velodrome_hub', 'manggarai_hub', 18],
-      ['tanah_abang_hub', 'tanah_abang_hub', 0],
-      ['bandara_shia_hub', 'dukuh_atas_hub', 45],
-      ['bandara_shia_hub', 'manggarai_hub', 52],
-      ['lebak_bulus_hub', 'blok_m_hub', 15],
-      ['lebak_bulus_hub', 'csw_asean_hub', 17]
+      // Dukuh Atas TOD Superhub
+      ['dukuh_atas_mrt', 'dukuh_atas_lrt', 3],
+      ['dukuh_atas_mrt', 'sudirman', 3],
+      ['dukuh_atas_mrt', 'bni_city', 3],
+      ['dukuh_atas_mrt', 'dukuh_atas_tj', 2],
+      ['dukuh_atas_lrt', 'galunggung', 2],
+      ['dukuh_atas_lrt', 'sudirman', 4],
+      ['sudirman', 'bni_city', 2],
+      ['sudirman', 'dukuh_atas_tj', 2],
+      // CSW - ASEAN - Blok M Cluster
+      ['asean', 'csw_integrasi', 2],
+      ['blok_m', 'csw_integrasi', 4],
+      ['asean', 'blok_m', 5],
+      // Kebayoran Skybridge to Velbak (Koridor 13 & 8)
+      ['kebayoran', 'velbak', 3],
+      // Cawang / Cikoko Multimoda Hub
+      ['cikoko', 'cawang_krl', 2],
+      ['cawang_lrt', 'cawang_otista', 3],
+      ['cawang_lrt', 'cawang_sutoyo', 3],
+      ['cawang_krl', 'cawang_lrt', 4],
+      // Halim HSR & LRT Skybridge
+      ['halim_lrt', 'halim_whoosh', 2],
+      // Velodrome & Pemuda Rawamangun Skybridge
+      ['velodrome', 'pemuda_rawamangun', 3],
+      // Pulomas & Cempaka Timur Skybridge
+      ['pulomas', 'cempaka_timur', 3],
+      // Juanda & Pasar Baru
+      ['juanda', 'pasar_baru', 4],
+      // Senen Intermodal
+      ['pasar_senen', 'senen', 3],
+      // Bundaran HI MRT & TJ
+      ['bundaran_hi', 'bundaran_hi_tj', 2],
+      // Rawa Buaya KRL & TJ
+      ['rawa_buaya', 'rawa_buaya_tj', 3],
+      // Kalideres KRL & TJ
+      ['kalideres_krl', 'kalideres_tj', 5],
+      // Kampung Rambutan LRT & TJ
+      ['kampung_rambutan_lrt', 'kampung_rambutan', 3],
+      // PGC Cililitan
+      ['pgc', 'cawang_sutoyo', 4],
+      // Matraman KRL & TJ
+      ['matraman', 'pramuka', 3],
+      // Jatinegara KRL & TJ
+      ['jatinegara', 'kampung_melayu', 6]
     ];
 
     transferClusters.forEach(([from, to, time]) => {
       if (from === to || time === 0) return;
-      if (this.stationMap[from] && this.stationMap[to]) {
-        this.graph[from].push({ node: to, lineId: 'transfer_walk', system: 'walk', weight: time });
-        this.graph[to].push({ node: from, lineId: 'transfer_walk', system: 'walk', weight: time });
+      const u = this.resolveStationId(from);
+      const v = this.resolveStationId(to);
+      if (this.stationMap[u] && this.stationMap[v]) {
+        this.graph[u].push({ node: v, lineId: 'transfer_walk', system: 'walk', weight: time });
+        this.graph[v].push({ node: u, lineId: 'transfer_walk', system: 'walk', weight: time });
       }
     });
   }
@@ -129,8 +134,8 @@ class RoutePlanner {
     if (!this.graph[u]) this.graph[u] = [];
     let weight = 3; // default transit time in minutes per stop
     if (system === 'whoosh') weight = 15;
-    else if (system === 'ka_bandara') weight = 8;
-    else if (system === 'krl') weight = 4;
+    else if (system === 'ka_bandara') weight = 7;
+    else if (system === 'krl') weight = 3.5;
     else if (system === 'mrt' || system === 'lrt_jdb' || system === 'lrt_jkt') weight = 2.5;
 
     this.graph[u].push({ node: v, lineId, system, weight });

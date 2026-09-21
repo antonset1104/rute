@@ -960,6 +960,12 @@ a:hover {
   background: #e2e8f0;
 }
 
+.btn-secondary.active {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+
 /* Footer */
 .site-footer {
   background: #0f172a;

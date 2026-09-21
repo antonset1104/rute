@@ -15,25 +15,76 @@ document.addEventListener('DOMContentLoaded', () => {
   const originSelect = document.getElementById('route-origin');
   const destSelect = document.getElementById('route-dest');
 
-  if (originSelect && destSelect) {
-    // Sort stations alphabetically by name
-    const sortedStations = [...transitData.stations].sort((a, b) => a.name.localeCompare(b.name));
-    
-    sortedStations.forEach(st => {
-      const optOrigin = document.createElement('option');
-      optOrigin.value = st.id;
-      optOrigin.textContent = `${st.name} [${st.modes.join(', ')}]`;
-      originSelect.appendChild(optOrigin);
+    // Group stations by primary mode / system for clean navigation
+    const modeGroups = {
+      'mrt': { label: '🚇 MRT Jakarta (Lin Utara-Selatan)', stations: [] },
+      'lrt_jdb': { label: '🚝 LRT Jabodebek (Lin Cibubur & Bekasi)', stations: [] },
+      'lrt_jkt': { label: '🚈 LRT Jakarta (Kelapa Gading - Velodrome)', stations: [] },
+      'krl': { label: '🚆 KRL Commuter Line Jabodetabek', stations: [] },
+      'whoosh': { label: '🚅 Kereta Cepat Whoosh Jakarta-Bandung', stations: [] },
+      'ka_bandara': { label: '✈️ KA Bandara Soekarno-Hatta (SHIA)', stations: [] },
+      'tj': { label: '🚌 TransJakarta BRT (Halte & Terminal Utama)', stations: [] }
+    };
 
-      const optDest = document.createElement('option');
-      optDest.value = st.id;
-      optDest.textContent = `${st.name} [${st.modes.join(', ')}]`;
-      destSelect.appendChild(optDest);
+    transitData.stations.forEach(st => {
+      let primaryMode = 'tj';
+      if (st.modes.includes('MRT')) primaryMode = 'mrt';
+      else if (st.modes.includes('LRT Jabodebek')) primaryMode = 'lrt_jdb';
+      else if (st.modes.includes('LRT Jakarta')) primaryMode = 'lrt_jkt';
+      else if (st.modes.includes('Whoosh')) primaryMode = 'whoosh';
+      else if (st.modes.includes('KA Bandara')) primaryMode = 'ka_bandara';
+      else if (st.modes.includes('KRL')) primaryMode = 'krl';
+      else if (st.modes.includes('TransJakarta')) primaryMode = 'tj';
+
+      if (modeGroups[primaryMode]) {
+        modeGroups[primaryMode].stations.push(st);
+      }
+    });
+
+    originSelect.innerHTML = '';
+    destSelect.innerHTML = '';
+
+    Object.values(modeGroups).forEach(group => {
+      if (group.stations.length === 0) return;
+      const grpOrigin = document.createElement('optgroup');
+      grpOrigin.label = group.label;
+      const grpDest = document.createElement('optgroup');
+      grpDest.label = group.label;
+
+      group.stations.sort((a, b) => a.name.localeCompare(b.name)).forEach(st => {
+        const optOrigin = document.createElement('option');
+        optOrigin.value = st.id;
+        optOrigin.textContent = `${st.name} (${st.city})`;
+        grpOrigin.appendChild(optOrigin);
+
+        const optDest = document.createElement('option');
+        optDest.value = st.id;
+        optDest.textContent = `${st.name} (${st.city})`;
+        grpDest.appendChild(optDest);
+      });
+
+      originSelect.appendChild(grpOrigin);
+      destSelect.appendChild(grpDest);
     });
 
     // Default selection: Lebak Bulus to Bundaran HI
-    originSelect.value = 'lebak_bulus_hub';
-    destSelect.value = 'bundaran_hi_hub';
+    originSelect.value = 'lebak_bulus';
+    destSelect.value = 'bundaran_hi';
+
+    // Deep linking from tourism and station directory
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramOrigin = urlParams.get('origin');
+    const paramDest = urlParams.get('dest');
+
+    if (paramOrigin && transitData.stations.some(s => s.id === paramOrigin)) {
+      originSelect.value = paramOrigin;
+    }
+    if (paramDest && transitData.stations.some(s => s.id === paramDest)) {
+      destSelect.value = paramDest;
+    }
+    if (paramOrigin || paramDest) {
+      setTimeout(() => executeRouteSearch(), 200);
+    }
   }
 
   // 3. Swap Origin and Destination
@@ -139,13 +190,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // 7. Render Transit Hubs Grid
   const hubsContainer = document.getElementById('transit-hubs-grid');
   if (hubsContainer) {
-    hubsContainer.innerHTML = transitData.stations.slice(0, 9).map(hub => {
+    const keyHubs = transitData.stations.filter(s => s.isHub).slice(0, 12);
+    hubsContainer.innerHTML = keyHubs.map(hub => {
       return `
         <article class="hub-card" id="card-${hub.id}">
           <div class="hub-header">
             <div>
               <h3 class="hub-name">${hub.name}</h3>
-              <div class="hub-location">${hub.city}</div>
+              <div class="hub-location">📍 ${hub.city}</div>
             </div>
           </div>
           <div class="hub-modes-list">
@@ -154,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <p class="hub-desc">${hub.description}</p>
           <div class="hub-transfers-label">Jalur & Halte Penghubung:</div>
           <div class="hub-transfers-tags">
-            ${hub.transfers.map(t => `<span class="transfer-tag">${t}</span>`).join(' ')}
+            ${hub.transfers.map(t => `<span class="transfer-tag">⇄ ${t}</span>`).join(' ')}
           </div>
         </article>
       `;
