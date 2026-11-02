@@ -17,7 +17,7 @@ const I18N_LANGUAGES = {
 
 const I18N_TRANSLATIONS = {
   id: {
-    siteTitle: 'Peta & Rute Integrasi Transportasi Umum Jakarta (Jabodetabek)',
+    siteTitle: 'Peta & Rute MRT, KRL, LRT, TransJakarta',
     siteTagline: 'Panduan Lengkap MRT, LRT, Commuter Line, Kereta Cepat Whoosh, KA Bandara, dan TransJakarta',
     navMap: 'Peta Interaktif',
     navPlanner: 'Cari Rute',
