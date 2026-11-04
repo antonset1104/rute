@@ -9,7 +9,7 @@ const ADSENSE_CONFIG = {
 
 class ConsentAndAdManager {
   constructor() {
-    this.consentKey = 'jakarta_transit_consent_v2';
+    this.consentKey = 'jakarta_transit_consent_v3';
     this.init();
   }
 
@@ -24,14 +24,12 @@ class ConsentAndAdManager {
       const stored = localStorage.getItem(this.consentKey);
       if (!stored) return null;
       const parsed = JSON.parse(stored);
-      // Check expiration (180 days validity)
-      if (parsed.timestamp) {
-        const consentAge = Date.now() - new Date(parsed.timestamp).getTime();
-        const maxAge = 180 * 24 * 60 * 60 * 1000;
-        if (consentAge > maxAge) {
-          localStorage.removeItem(this.consentKey);
-          return null;
-        }
+      const consentAge = Date.now() - Date.parse(parsed?.timestamp);
+      const maxAge = 180 * 24 * 60 * 60 * 1000;
+      if (!Number.isFinite(consentAge) || consentAge < 0 || consentAge > maxAge ||
+          typeof parsed.analytics !== 'boolean' || typeof parsed.personalizedAds !== 'boolean') {
+        localStorage.removeItem(this.consentKey);
+        return null;
       }
       return parsed;
     } catch (e) {
@@ -73,7 +71,7 @@ class ConsentAndAdManager {
         </div>
         <div class="cmp-actions">
           <button type="button" class="cmp-btn cmp-btn-primary" id="cmp-accept-all">Setuju Semua (Accept All)</button>
-          <button type="button" class="cmp-btn cmp-btn-secondary" id="cmp-reject-nonessential">Iklan Standar Saja (Essential Only)</button>
+          <button type="button" class="cmp-btn cmp-btn-secondary" id="cmp-reject-nonessential">Tolak Non-esensial (Essential Only)</button>
           <a href="privacy-policy.html" class="cmp-link">Kebijakan Privasi</a>
         </div>
       </div>
@@ -92,13 +90,22 @@ class ConsentAndAdManager {
     const btnReject = document.getElementById('cmp-reject-nonessential');
     if (btnReject) {
       btnReject.onclick = () => {
-        this.saveConsent({ analytics: true, personalizedAds: false });
+        this.saveConsent({ analytics: false, personalizedAds: false });
         banner.remove();
       };
     }
   }
 
   saveConsent(settings) {
+    window.vijeronAnalyticsAllowed = settings.analytics === true;
+    if (typeof window.gtag === 'function') {
+      window.gtag('consent', 'update', {
+        ad_storage: settings.personalizedAds ? 'granted' : 'denied',
+        ad_user_data: settings.personalizedAds ? 'granted' : 'denied',
+        ad_personalization: settings.personalizedAds ? 'granted' : 'denied',
+        analytics_storage: settings.analytics ? 'granted' : 'denied'
+      });
+    }
     const payload = {
       timestamp: new Date().toISOString(),
       ...settings
@@ -143,7 +150,7 @@ class ConsentAndAdManager {
   }
 
   openPrivacyModal() {
-    const consent = this.getStoredConsent() || { analytics: true, personalizedAds: false };
+    const consent = this.getStoredConsent() || { analytics: false, personalizedAds: false };
     
     let modal = document.getElementById('privacy-preferences-modal');
     if (!modal) {

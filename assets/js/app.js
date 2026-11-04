@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
       destSelect.value = paramDest;
     }
     if (paramOrigin || paramDest) {
-      setTimeout(() => executeRouteSearch(), 200);
+      setTimeout(() => executeRouteSearch('deep_link'), 200);
     }
   }
 
@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const targetId = btn.getAttribute('data-target-station');
       if (destSelect && targetId) {
         destSelect.value = targetId;
-        executeRouteSearch();
+        executeRouteSearch('quick_destination');
       }
     });
   });
@@ -113,10 +113,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // 5. Search Route Execution
   const btnFind = document.getElementById('btn-find-route');
   if (btnFind) {
-    btnFind.addEventListener('click', executeRouteSearch);
+    btnFind.addEventListener('click', () => executeRouteSearch('button'));
   }
 
-  function executeRouteSearch() {
+  function trackRouteEvent(name, source, result) {
+    if (!window.vijeronAnalyticsAllowed || typeof window.gtag !== 'function') return;
+    window.gtag('event', name, {
+      content_group: 'transit_route',
+      feature: 'route_planner',
+      content_locale: document.documentElement.lang || 'id',
+      search_source: source,
+      result
+    });
+  }
+
+  function executeRouteSearch(source) {
     const originId = originSelect.value;
     const destId = destSelect.value;
 
@@ -131,6 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const route = planner.findRoute(originId, destId);
+    trackRouteEvent('search_submit', source, route ? 'route_found' : 'no_route');
+    if (!route) return;
     renderRouteResult(route);
     mapEngine.highlightRoute(route);
   }
